@@ -1,0 +1,2 @@
+# Keep line endings consistent (LF) no matter which operating system commits.
+* text=auto eol=lf

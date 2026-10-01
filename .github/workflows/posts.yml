@@ -1,0 +1,80 @@
+name: posts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Scan every commit for secrets (gitleaks, MIT-licensed binary)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+            | tar -xz gitleaks
+          ./gitleaks git . --no-banner --redact --exit-code 1
+
+  notebooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Find changed posts
+        id: changed
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || ! git cat-file -e "$base" 2>/dev/null; then
+            slugs=$(ls posts)                      # first push or unknown base: run every post
+          else
+            slugs=$(git diff --name-only "$base" HEAD -- posts | cut -d/ -f2 | sort -u)
+          fi
+          echo "slugs=$(echo $slugs)" >> "$GITHUB_OUTPUT"
+      - name: Cache Hugging Face downloads
+        if: steps.changed.outputs.slugs != ''
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ hashFiles('posts/*/post.toml') }}
+      - name: Run each changed notebook on CPU (cells tagged gpu are skipped)
+        if: steps.changed.outputs.slugs != ''
+        run: |
+          for slug in ${{ steps.changed.outputs.slugs }}; do
+            [ -f "posts/$slug/post.toml" ] || continue   # the post was removed
+            echo "::group::$slug"
+            python -m venv "/tmp/venv-$slug"
+            . "/tmp/venv-$slug/bin/activate"
+            # Use the small CPU build of PyTorch; the pinned version stays the same.
+            torch_pin=$(grep -oE '^torch==[^ ;#]+' "posts/$slug/requirements.txt" || true)
+            if [ -n "$torch_pin" ]; then
+              pip install -q "$torch_pin" --index-url https://download.pytorch.org/whl/cpu
+            fi
+            # Skip the NVIDIA GPU libraries: the runner has no GPU, and they take gigabytes.
+            grep -v -E '^(nvidia-|triton==|cuda-)' "posts/$slug/requirements.txt" > "/tmp/req-$slug.txt"
+            pip install -q -r "/tmp/req-$slug.txt" nbformat nbclient ipykernel
+            python - "$slug" <<'PY'
+          import sys, tomllib
+          import nbformat
+          from nbclient import NotebookClient
+
+          slug = sys.argv[1]
+          folder = f"posts/{slug}"
+          meta = tomllib.load(open(f"{folder}/post.toml", "rb"))
+          nb = nbformat.read(f"{folder}/{meta['notebook']}", as_version=4)
+          nb.cells = [c for c in nb.cells if "gpu" not in c.metadata.get("tags", [])]
+          NotebookClient(nb, timeout=3600, kernel_name="python3", resources={"metadata": {"path": folder}}).execute()
+          print(f"{slug}: notebook ran without errors (cells tagged gpu skipped)")
+          PY
+            deactivate
+            echo "::endgroup::"
+          done

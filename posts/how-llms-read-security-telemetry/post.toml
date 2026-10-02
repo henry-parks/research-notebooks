@@ -4,9 +4,9 @@ title = "Understanding How LLMs Process Security Telemetry"
 section = "research"         # research | notes | advisories | talks
 url = "https://henryparks.com/research/how-llms-read-security-telemetry/"
 area = "ai-detection-engineering"
-status = "draft"            # draft | published
+status = "published"            # draft | published
 version = "1.0"             # tag: <slug>-v<version>
-published = ""              # YYYY-MM-DD, set when the post goes live
+published = "2026-10-02"              # YYYY-MM-DD, set when the post goes live
 notebook = "how-llms-read-security-telemetry.ipynb"
 gpu = "Sections 7 and 8 only"
 

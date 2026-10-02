@@ -8,7 +8,7 @@ engineers.
 <!-- Generated from each post's post.toml. Do not edit this table by hand. -->
 | Post | Published | Run it | Needs a GPU? |
 | --- | --- | --- | --- |
-| Understanding How LLMs Process Security Telemetry | not yet | [folder](posts/how-llms-read-security-telemetry/) | Sections 7 and 8 only |
+| [Understanding How LLMs Process Security Telemetry](https://henryparks.com/research/how-llms-read-security-telemetry/) | 2026-10-02 | [Open in Colab](https://colab.research.google.com/github/henry-parks/research-notebooks/blob/how-llms-read-security-telemetry-v1.0/posts/how-llms-read-security-telemetry/how-llms-read-security-telemetry.ipynb) or the [folder](posts/how-llms-read-security-telemetry/) | Sections 7 and 8 only |
 <!-- index:end -->
 
 ## Run it locally
